@@ -1,0 +1,19 @@
+# Render deployment configuration for EquipSense Backend
+
+services:
+  - type: web
+    name: equipsense-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput
+    startCommand: gunicorn equipment_backend.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: DATABASE_URL
+        value: db.sqlite3
+      - key: PYTHON_VERSION
+        value: 3.11.0

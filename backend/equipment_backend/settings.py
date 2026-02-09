@@ -7,6 +7,7 @@ Production-Ready Configuration with JWT Authentication
 from pathlib import Path
 from datetime import timedelta
 import os
+import sys
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -18,7 +19,9 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-key-change-in-pro
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*']
+# Allowed hosts configuration for production
+ALLOWED_HOSTS_ENV = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1')
+ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS_ENV.split(',')]
 
 
 # Application definition
@@ -46,6 +49,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # CORS Middleware - Must be top
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files in production
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -78,10 +82,17 @@ WSGI_APPLICATION = 'equipment_backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+# SQLite database with environment variable support
+DATABASE_PATH = os.environ.get('DATABASE_URL', str(BASE_DIR / 'db.sqlite3'))
+
+# Ensure database directory exists
+db_path = Path(DATABASE_PATH)
+db_path.parent.mkdir(parents=True, exist_ok=True)
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': DATABASE_PATH,
     }
 }
 
@@ -120,8 +131,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# WhiteNoise configuration for production static file serving
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
@@ -167,13 +181,14 @@ SIMPLE_JWT = {
 
 
 # CORS Settings
-CORS_ALLOW_ALL_ORIGINS = True  # For development - restrict in production
-CORS_ALLOW_CREDENTIALS = True
+# Allow frontend origins from environment variable
+CORS_ALLOWED_ORIGINS_ENV = os.environ.get(
+    'CORS_ALLOWED_ORIGINS',
+    'http://localhost:3000,http://127.0.0.1:3000'
+)
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS_ENV.split(',')]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_METHODS = [
     'DELETE',
